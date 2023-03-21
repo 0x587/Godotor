@@ -16,13 +16,26 @@ const getRelativePath = (root: vscode.Uri, uri: vscode.Uri) => {
 const buildTaskName = 'GodotBuild'
 const runSceneTaskName = 'GodotRunScene'
 
+interface Configurations {
+    executablePath: string | undefined
+    displayMode: 'fullscreen' | 'maximized' | 'windowed'
+    windowPosition: { x: number, y: number } | undefined
+    windowResolution: { x: number, y: number } | undefined
+    customArgs: string | undefined
+}
+
 export class GodotorExtension {
     private context!: vscode.ExtensionContext
-    private config!: vscode.WorkspaceConfiguration
+    private config: Configurations = {
+        executablePath: undefined,
+        displayMode: 'windowed',
+        windowPosition: undefined,
+        windowResolution: undefined,
+        customArgs: undefined
+    }
     private channel: vscode.OutputChannel = vscode.window.createOutputChannel('Godotor')
     private workSceneStatusBarItem: vscode.StatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0)
 
-    private godotExecutablePath: string = ''
     private workScene: string | undefined
 
     private rootWorkFolder!: vscode.WorkspaceFolder
@@ -59,13 +72,31 @@ export class GodotorExtension {
     }
 
     private makeRunSceneTask() {
-        if (!this.godotExecutablePath) {
+        if (!this.config.executablePath) {
             vscode.window.showErrorMessage('Please input godot engine executable path')
         }
+        let command = `${this.config.executablePath} ${this.workScene} `
+
+        // display mode
+        command += `--${this.config.displayMode} `
+
+        // window position
+        if (this.config.windowPosition && this.config.windowPosition.x && this.config.windowPosition.y)
+            command += `--position ${this.config.windowPosition.x},${this.config.windowPosition.y} `
+
+        // window resolution
+        if (this.config.displayMode === 'windowed' && this.config.windowResolution
+            && this.config.windowResolution.x && this.config.windowResolution.y)
+            command += `--resolution ${this.config.windowResolution.x}x${this.config.windowResolution.y} `
+
+        // custom args
+        if (this.config.customArgs)
+            command += `${this.config.customArgs}`
+
         return new vscode.Task(
             { type: runSceneTaskName },
             this.rootWorkFolder, runSceneTaskName, 'shell',
-            new vscode.ShellExecution(`${this.godotExecutablePath} ${this.workScene}`)
+            new vscode.ShellExecution(command)
         )
     }
 
@@ -73,8 +104,20 @@ export class GodotorExtension {
         const scene = this.context.workspaceState.get<string | undefined>('workScene')
         if (scene)
             this.workScene = scene
-        this.config = vscode.workspace.getConfiguration('godotor')
-        this.godotExecutablePath = this.config.get('godot.executablePath') || ''
+        const config = vscode.workspace.getConfiguration('godotor')
+        this.config.executablePath = config.get<string>('godot.executablePath') || ''
+        this.config.displayMode = config.get<'fullscreen' | 'maximized' | 'windowed'>('godot.displayMode') || 'windowed'
+        const positionString = config.get<string>('godot.windowPosition') || undefined
+        if (positionString) {
+            const position = positionString.split(',')
+            this.config.windowPosition = { x: parseInt(position[0]), y: parseInt(position[1]) }
+        }
+        const resolutionString = config.get<string>('godot.windowResolution') || undefined
+        if (resolutionString) {
+            const resolution = resolutionString.split('x')
+            this.config.windowResolution = { x: parseInt(resolution[0]), y: parseInt(resolution[1]) }
+        }
+        this.config.customArgs = config.get<string>('godot.customArgs') || undefined
     }
 
     private async getWorkspaceScenes() {

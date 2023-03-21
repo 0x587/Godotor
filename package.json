@@ -38,7 +38,32 @@
         "godotor.godot.executablePath": {
           "type": "string",
           "default": null,
-          "description": "Path to the Godot engine executable."
+          "markdownDescription": "Path to the Godot engine executable."
+        },
+        "godotor.godot.displayMode": {
+          "type": "string",
+          "enum": [
+            "fullscreen",
+            "maximized",
+            "windowed"
+          ],
+          "default": "windowed",
+          "markdownDescription": "Select the display mode at run time."
+        },
+        "godotor.godot.windowPosition": {
+          "type": "string",
+          "default": "10,32",
+          "markdownDescription": "This is the position of the top left corner of the window. default is 10,32. **It's working in mulitscreen.**"
+        },
+        "godotor.godot.windowResolution": {
+          "type": "string",
+          "default": "1280x720",
+          "markdownDescription": "The resolution of window, default is 1280x720. **ps: only work in windowed mode.**"
+        },
+        "godotor.godot.customArgs": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Custom run args, default is empty."
         }
       }
     }

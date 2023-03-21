@@ -28,10 +28,6 @@ This extension contributes the following settings:
 
 None
 
-## Release Notes
-
-### 1.0.0 Init Release
-
 ---
 
 <!-- ## Following extension guidelines
