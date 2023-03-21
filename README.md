@@ -1,4 +1,4 @@
-# godotor README
+# Godotor README
 
 This is the README for extension "Godotor".
 
@@ -10,6 +10,13 @@ This is the README for extension "Godotor".
 ## Requirements
 
 * [.NET 6 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/6.0) or newer and [C# Extension](https://github.com/OmniSharp/omnisharp-vscode) for build task.
+
+## Usage
+
+|command|description|
+|-|-|
+|`godotor.selectScene`|select current working scene.|
+|`godotor.runScene`|run scene and watching it.|
 
 ## Extension Settings
 
