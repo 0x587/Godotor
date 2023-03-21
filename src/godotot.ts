@@ -27,6 +27,9 @@ export class GodotorExtension {
 
     private rootWorkFolder!: vscode.WorkspaceFolder
     private rootUri!: vscode.Uri
+
+    private watching: boolean = false
+    private building: boolean = false
     private running: boolean = false
 
     constructor(context: vscode.ExtensionContext) {
@@ -44,24 +47,24 @@ export class GodotorExtension {
         this.workSceneStatusBarItem.command = 'godotor.selectScene';
         this.updateWorkSceneStatusBarItem()
 
-        vscode.tasks.onDidEndTaskProcess((e) => {
-            if (e.execution.task.name === runSceneTaskName)
-                this.running = false
-        })
+        vscode.tasks.onDidEndTaskProcess(e => this.taskDidEndWatchDog(e))
     }
 
-    private makeBuildTask(seek: number) {
+    private makeBuildTask() {
         return new vscode.Task(
             { type: buildTaskName },
-            this.rootWorkFolder, buildTaskName + seek, 'shell',
+            this.rootWorkFolder, buildTaskName, 'shell',
             new vscode.ShellExecution(`dotnet build /property:GenerateFullPaths=true /consoleloggerparameters:NoSummary`)
         )
     }
 
-    private makeRunSceneTask(seek: number) {
+    private makeRunSceneTask() {
+        if (!this.godotExecutablePath) {
+            vscode.window.showErrorMessage('Please input godot engine executable path')
+        }
         return new vscode.Task(
             { type: runSceneTaskName },
-            this.rootWorkFolder, runSceneTaskName + seek, 'shell',
+            this.rootWorkFolder, runSceneTaskName, 'shell',
             new vscode.ShellExecution(`${this.godotExecutablePath} ${this.workScene}`)
         )
     }
@@ -96,16 +99,39 @@ export class GodotorExtension {
     }
 
     public async onRunScene() {
-        const buildSeek = randomInt(0, 1000000)
-        vscode.tasks.executeTask(this.makeBuildTask(buildSeek))
-        let buildedTimer = setInterval(() => {
+        vscode.tasks.executeTask(this.makeBuildTask())
+        this.building = true
+        this.watching = true
+    }
 
-        }, 500)
-        this.running = true
+    private async taskDidEndWatchDog(e: vscode.TaskProcessEndEvent) {
+        const { name } = e.execution.task
+        const { exitCode } = e
+        console.log(name, exitCode);
+        if (name === buildTaskName && exitCode === 0) {
+            if (this.running) {
+                for (const taskExecution of vscode.tasks.taskExecutions) {
+                    if (taskExecution.task.name === runSceneTaskName)
+                        taskExecution.terminate(), this.running = false
+                }
+            }
+            this.building = false
+            vscode.tasks.executeTask(this.makeRunSceneTask())
+            this.running = true
+        }
+        if (name === runSceneTaskName) {
+            if (exitCode === 1)
+                this.running = this.watching = false
+            else
+                this.running = false
+        }
     }
 
     public onDocumentSaved(document: vscode.TextDocument) {
-        if (this.running)
-            this.onRunScene()
+        if (!this.watching)
+            return
+        if (this.building)
+            return
+        this.onRunScene()
     }
 }
