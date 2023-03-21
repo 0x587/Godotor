@@ -70,6 +70,9 @@ export class GodotorExtension {
     }
 
     public loadConfig() {
+        const scene = this.context.workspaceState.get<string | undefined>('workScene')
+        if (scene)
+            this.workScene = scene
         this.config = vscode.workspace.getConfiguration('godotor')
         this.godotExecutablePath = this.config.get('godot.executablePath') || ''
     }
@@ -94,8 +97,15 @@ export class GodotorExtension {
         const curScene = await vscode.window.showQuickPick(await this.getWorkspaceScenes(), {
             placeHolder: 'select scene'
         });
-        if (curScene)
-            this.workScene = curScene, this.updateWorkSceneStatusBarItem()
+        this.setScene(curScene)
+    }
+
+    private setScene(scene: string | undefined) {
+        if (!scene)
+            return
+        this.workScene = scene
+        this.updateWorkSceneStatusBarItem()
+        this.context.workspaceState.update('workScene', scene)
     }
 
     public async onRunScene() {
@@ -108,23 +118,26 @@ export class GodotorExtension {
         const { name } = e.execution.task
         const { exitCode } = e
         console.log(name, exitCode);
+        console.log(this.running, this.building, this.watching);
+
         if (name === buildTaskName && exitCode === 0) {
-            if (this.running) {
-                for (const taskExecution of vscode.tasks.taskExecutions) {
-                    if (taskExecution.task.name === runSceneTaskName)
-                        taskExecution.terminate(), this.running = false
-                }
-            }
+            this.killScene()
             this.building = false
             vscode.tasks.executeTask(this.makeRunSceneTask())
             this.running = true
         }
         if (name === runSceneTaskName) {
             if (exitCode === 1)
-                this.running = this.watching = false
+                this.running = false, this.watching = false
             else
                 this.running = false
         }
+    }
+
+    private killScene() {
+        for (const taskExecution of vscode.tasks.taskExecutions)
+            if (taskExecution.task.name === runSceneTaskName)
+                taskExecution.terminate()
     }
 
     public onDocumentSaved(document: vscode.TextDocument) {
