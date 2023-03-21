@@ -163,11 +163,16 @@ export class GodotorExtension {
         console.log(name, exitCode);
         console.log(this.running, this.building, this.watching);
 
-        if (name === buildTaskName && exitCode === 0) {
-            this.killScene()
-            this.building = false
-            vscode.tasks.executeTask(this.makeRunSceneTask())
-            this.running = true
+        if (name === buildTaskName) {
+            if (exitCode === 0) {
+                this.killScene()
+                this.building = false
+                vscode.tasks.executeTask(this.makeRunSceneTask())
+                this.running = true
+            }
+            else {
+                this.building = false
+            }
         }
         if (name === runSceneTaskName) {
             if (exitCode === 1)
